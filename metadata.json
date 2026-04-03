@@ -1,0 +1,9 @@
+{
+  "name": "ELITIRO Hotel Management System",
+  "description": "A centralized, web-based platform for seamless hotel operations, featuring tailored dashboards for guests, staff, and management.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user account information and roles.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["guest", "receptionist", "admin", "housekeeping", "maintenance", "kitchen", "accountant"] },
+        "phoneNumber": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "Represents a hotel room.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "number": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "dirty", "cleaning", "clean", "out_of_order"] },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "amenities": { "type": "array", "items": { "type": "string" } },
+        "images": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["number", "type", "status", "price"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Represents a guest reservation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "guestId": { "type": "string" },
+        "guestName": { "type": "string" },
+        "roomId": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "checkInDate": { "type": "string", "format": "date-time" },
+        "checkOutDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["confirmed", "checked_in", "checked_out", "cancelled"] },
+        "totalAmount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["guestId", "roomId", "checkInDate", "checkOutDate", "status"]
+    },
+    "ServiceOrder": {
+      "title": "Service Order",
+      "description": "Represents a room service or kitchen order.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bookingId": { "type": "string" },
+        "guestId": { "type": "string" },
+        "roomId": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "items": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" }
+            }
+          } 
+        },
+        "status": { "type": "string", "enum": ["pending", "preparing", "on_the_way", "delivered"] },
+        "totalAmount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["bookingId", "roomId", "items", "status"]
+    },
+    "MaintenanceTicket": {
+      "title": "Maintenance Ticket",
+      "description": "Represents a repair request.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomId": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "resolved"] },
+        "reportedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "description", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles and roles."
+    },
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Hotel room inventory."
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Guest reservations."
+    },
+    "/orders/{orderId}": {
+      "schema": "ServiceOrder",
+      "description": "Kitchen and service orders."
+    },
+    "/maintenance/{ticketId}": {
+      "schema": "MaintenanceTicket",
+      "description": "Repair requests."
+    }
+  }
+}
