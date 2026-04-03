@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart3, BookOpen, Building2, FileSpreadsheet, Landmark, PlusCircle, Wallet } from 'lucide-react';
+import { fetchFinanceWorkspace, saveFinanceWorkspace } from '../finance/api';
 import { buildLedgerForAccount, calculateAccountingSummary, formatMoney } from '../finance/engine';
 import { financeSeed } from '../finance/seed';
 import { FinanceAccount, FinanceWorkspaceState, JournalEntry, JournalLine } from '../finance/types';
-
-const STORAGE_KEY = 'condigital-finance-workspace-v1';
 
 type ModuleKey = 'overview' | 'accounts' | 'journals' | 'trial-balance' | 'cashflow' | 'roadmap';
 
@@ -17,15 +16,6 @@ const modules: Array<{ key: ModuleKey; label: string; icon: React.ComponentType<
   { key: 'roadmap', label: 'Roadmap', icon: BarChart3 },
 ];
 
-function loadWorkspace(): FinanceWorkspaceState {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as FinanceWorkspaceState) : financeSeed;
-  } catch {
-    return financeSeed;
-  }
-}
-
 function makeId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -35,9 +25,11 @@ function emptyLine(accountId = ''): JournalLine {
 }
 
 export function FinanceWorkbench() {
-  const [workspace, setWorkspace] = useState<FinanceWorkspaceState>(() => loadWorkspace());
+  const [workspace, setWorkspace] = useState<FinanceWorkspaceState>(financeSeed);
   const [activeModule, setActiveModule] = useState<ModuleKey>('overview');
   const [selectedLedgerId, setSelectedLedgerId] = useState(financeSeed.accounts[1].id);
+  const [loading, setLoading] = useState(true);
+  const [syncState, setSyncState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [accountForm, setAccountForm] = useState({
     code: '',
     name: '',
@@ -53,8 +45,44 @@ export function FinanceWorkbench() {
   });
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
-  }, [workspace]);
+    let isMounted = true;
+
+    void (async () => {
+      try {
+        const remoteWorkspace = await fetchFinanceWorkspace();
+        if (!isMounted) return;
+        setWorkspace(remoteWorkspace);
+        setSelectedLedgerId(remoteWorkspace.accounts[1]?.id ?? remoteWorkspace.accounts[0]?.id ?? financeSeed.accounts[1].id);
+      } catch (error) {
+        console.error('Failed to load finance workspace', error);
+        if (!isMounted) return;
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const timer = window.setTimeout(() => {
+      setSyncState('saving');
+      void saveFinanceWorkspace(workspace)
+        .then(() => setSyncState('saved'))
+        .catch((error) => {
+          console.error('Failed to save finance workspace', error);
+          setSyncState('error');
+        });
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [workspace, loading]);
 
   const summary = useMemo(() => calculateAccountingSummary(workspace), [workspace]);
   const ledgerRows = useMemo(() => buildLedgerForAccount(workspace, selectedLedgerId), [workspace, selectedLedgerId]);
@@ -126,6 +154,18 @@ export function FinanceWorkbench() {
     });
   }
 
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f7f0e6]">
+        <div className="rounded-[32px] border border-[#ddcfbd] bg-white px-8 py-7 text-center shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#8b6644]">Finsheet</p>
+          <h1 className="mt-3 text-2xl font-semibold text-[#241b13]">Loading finance workspace</h1>
+          <p className="mt-3 text-sm text-[#725842]">Connecting to the hosted accounting database and preparing shared data.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f7f0e6] text-[#241b13]">
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
@@ -158,6 +198,12 @@ export function FinanceWorkbench() {
             <p className="mt-3 max-w-4xl text-sm text-[#725842]">
               Phase 1 turns the project into a working accounting core with chart of accounts, journal posting, trial balance, general ledger drilldown, and cashflow summary.
             </p>
+            <div className="mt-4 inline-flex rounded-full border border-[#ddcfbd] bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#725842]">
+              {syncState === 'saving' && 'Saving'}
+              {syncState === 'saved' && 'Saved to server'}
+              {syncState === 'error' && 'Sync error'}
+              {syncState === 'idle' && 'Connected'}
+            </div>
           </header>
 
           <section className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">

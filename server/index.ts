@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import { fileURLToPath } from 'url';
 
 type WhereOp = '==' | '!=' | 'in';
 type Direction = 'asc' | 'desc';
@@ -29,12 +30,14 @@ interface BatchOperation {
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
-const dataDir = path.resolve(process.cwd(), 'data');
+const currentFilePath = fileURLToPath(import.meta.url);
+const projectRoot = path.resolve(path.dirname(currentFilePath), '..');
+const dataDir = path.resolve(projectRoot, process.env.DATA_DIR ?? 'data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'hotel.sqlite');
+const dbPath = path.join(dataDir, 'finsheet.sqlite');
 const sqlite = new Database(dbPath);
 sqlite.pragma('journal_mode = WAL');
 sqlite.exec(`
@@ -278,7 +281,21 @@ app.post('/api/db/batch', (req, res) => {
   }
 });
 
-const port = Number(process.env.API_PORT ?? 4000);
+const distDir = path.join(projectRoot, 'dist');
+if (fs.existsSync(distDir)) {
+  app.use(express.static(distDir));
+
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      next();
+      return;
+    }
+
+    res.sendFile(path.join(distDir, 'index.html'));
+  });
+}
+
+const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
 app.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`API running on http://localhost:${port}`);
