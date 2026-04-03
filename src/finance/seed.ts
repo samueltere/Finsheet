@@ -2,7 +2,7 @@ import { FinanceWorkspaceState } from './types';
 
 export const financeSeed: FinanceWorkspaceState = {
   company: {
-    name: 'ConDigital Finance',
+    name: 'FinSheet',
     baseCurrency: 'USD',
     fiscalYear: '2026',
   },

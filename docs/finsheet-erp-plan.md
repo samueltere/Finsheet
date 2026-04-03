@@ -1,4 +1,4 @@
-# ConDigital Finance ERP Plan
+# FinSheet ERP Plan
 
 ## Product Direction
 

@@ -171,7 +171,7 @@ export function FinanceWorkbench() {
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
         <aside className="w-[280px] shrink-0 border-r border-[#d8cab8] bg-[#18130f] p-4 text-[#f6eadb]">
           <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#f1c98c]">ConDigital</p>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#f1c98c]">FinSheet</p>
             <h1 className="mt-3 text-2xl font-semibold">{workspace.company.name}</h1>
             <p className="mt-2 text-sm text-[#dccab2]">Sage 50 inspired accounting workspace</p>
           </div>
@@ -428,10 +428,10 @@ export function FinanceWorkbench() {
               <h3 className="text-2xl font-semibold">SDLC Roadmap</h3>
               <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {['Phase 1: Core accounting', 'Phase 2: Statements and periods', 'Phase 3: Receivables', 'Phase 4: Payables', 'Phase 5: Banking', 'Phase 6: Inventory and projects', 'Phase 7: Fixed assets', 'Phase 8: Payroll', 'Phase 9: Tax and declarations'].map((item) => (
-                  <div key={item} className="rounded-3xl border border-[#eadfce] bg-[#fcfaf7] p-5 text-sm font-semibold">{item}</div>
+              <div key={item} className="rounded-3xl border border-[#eadfce] bg-[#fcfaf7] p-5 text-sm font-semibold">{item}</div>
                 ))}
               </div>
-              <p className="mt-6 text-sm text-[#725842]">The full written plan is in `docs/condigital-erp-plan.md`.</p>
+              <p className="mt-6 text-sm text-[#725842]">The full written plan is in `docs/finsheet-erp-plan.md`.</p>
             </div>
           )}
         </main>
