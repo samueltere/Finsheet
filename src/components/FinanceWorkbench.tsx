@@ -10,7 +10,7 @@ import { BusinessStatusView, CompanyInfoView } from './finance-workbench/company
 
 function ToolbarButton({ icon: Icon, label }: { icon: React.ComponentType<{ size?: number }>; label: string }) {
   return (
-    <button className="inline-flex h-9 items-center gap-2 rounded-md border border-[#d8dee8] bg-white px-3 text-[12px] font-medium text-[#556173] hover:bg-[#f8fbff]">
+    <button className="fin-toolbar-btn inline-flex h-10 items-center gap-2 rounded-xl px-3 text-[12px] font-medium">
       <Icon size={14} />
       <span>{label}</span>
     </button>
@@ -73,70 +73,80 @@ export function FinanceWorkbench() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f6f8fb]">
-        <div className="rounded-xl border border-[#d8dee8] bg-white px-8 py-7 text-center shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#6d7786]">FinSheet</p>
-          <h1 className="mt-3 text-2xl font-semibold text-[#2d3642]">Loading workspace</h1>
+      <div className="fin-shell-bg flex min-h-screen items-center justify-center">
+        <div className="fin-card rounded-[28px] px-8 py-7 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#668178]">FinSheet</p>
+          <h1 className="mt-3 text-2xl font-semibold text-[#172126]">Loading workspace</h1>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f8fb] text-[#2d3642]">
+    <div className="fin-shell-bg min-h-screen text-[#172126]">
       <div className="flex min-h-screen">
-        <aside className="flex w-[150px] shrink-0 flex-col border-r border-[#dbe2ea] bg-[#f4f6fa]">
-          <div className="flex h-[54px] items-center border-b border-[#e6ebf2] px-3">
-            <button className="rounded-md p-1 text-[#4b5564] hover:bg-white"><Grid2x2 size={22} /></button>
+        <aside className="fin-sidebar flex w-[238px] shrink-0 flex-col">
+          <div className="flex h-[64px] items-center border-b border-white/6 px-5">
+            <button className="rounded-xl p-2 text-[#d7e6de] hover:bg-white/6"><Grid2x2 size={20} /></button>
           </div>
-          <div className="px-3 py-4">
-            <div className="mb-4 flex items-center gap-2 px-1">
-              <div className="flex h-5 w-5 items-center justify-center rounded-[4px] bg-[#f4553c] text-white"><Grid2x2 size={12} /></div>
-              <span className="font-serif text-[18px] font-semibold text-[#5a2130]">FinSheet</span>
+          <div className="px-5 py-6">
+            <div className="mb-6 rounded-[26px] border border-white/8 bg-white/4 px-4 py-5">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="fin-brand-mark flex h-10 w-10 items-center justify-center rounded-2xl text-white"><Grid2x2 size={16} /></div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#90b1a6]">FinSheet</p>
+                  <span className="block text-sm text-[#d7e6de]">Finance hub</span>
+                </div>
+              </div>
+              <p className="text-[12px] leading-6 text-[#a9c2b8]">Original ERP workspace for accounting, inventory, company operations, and cash management.</p>
             </div>
-            <nav className="space-y-1">
+            <nav className="space-y-2">
               {navItems.map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
                   onClick={() => setActivePage(key)}
-                  className={`flex w-full items-center gap-2 rounded-md border px-3 py-3 text-left text-[12px] ${activePage === key ? 'border-[#0d6efd] bg-white text-[#111827]' : 'border-transparent text-[#95a0b1] hover:border-[#d9e1ea] hover:bg-white'}`}
+                  className={`fin-nav-btn flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-[13px] ${activePage === key ? 'fin-nav-btn-active' : ''}`}
                 >
                   <Icon size={15} />
-                  <span>{label}</span>
+                  <span className="font-medium">{label}</span>
                 </button>
               ))}
             </nav>
           </div>
-          <div className="mt-auto space-y-4 px-5 pb-8 text-[12px] text-[#95a0b1]">
-            <button className="flex items-center gap-2 hover:text-[#5b6677]"><HelpCircle size={16} />Help Center</button>
-            <button className="flex items-center gap-2 hover:text-[#5b6677]"><LogOut size={16} />Log out</button>
-            <p className="pl-6 text-[11px]">v1.0.0</p>
+          <div className="mt-auto space-y-4 px-5 pb-8 text-[12px] text-[#a9c2b8]">
+            <button className="flex items-center gap-2 hover:text-white"><HelpCircle size={16} />Help Center</button>
+            <button className="flex items-center gap-2 hover:text-white"><LogOut size={16} />Log out</button>
+            <p className="pl-6 text-[11px] text-[#88a59b]">v1.0.0</p>
           </div>
         </aside>
 
         <main className="flex-1">
-          <div className="sticky top-0 z-10 border-b border-[#e4e9f1] bg-[#fffdfb] px-4 py-4">
-            <div className="flex items-center gap-4 rounded-xl border border-[#dbe2ea] bg-white px-4 py-2">
+          <div className="fin-topbar sticky top-0 z-10 px-5 py-5">
+            <div className="fin-surface flex items-center gap-4 rounded-[28px] px-5 py-3">
               <div className="flex items-center gap-4 overflow-x-auto">
                 {topTabs.map((tab) => (
-                  <button key={tab} className={`border-b-2 px-3 py-2 text-[12px] font-medium whitespace-nowrap ${topTabForPage(activePage) === tab ? 'border-[#0bb24c] text-[#0bb24c]' : 'border-transparent text-[#252f3d]'}`}>{tab}</button>
+                  <button key={tab} className={`fin-top-tab rounded-2xl px-4 py-3 text-[12px] font-medium whitespace-nowrap ${topTabForPage(activePage) === tab ? 'fin-top-tab-active' : ''}`}>{tab}</button>
                 ))}
               </div>
               <div className="ml-auto flex items-center gap-4">
                 <div className="relative">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa5b5]" />
-                  <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search" className="h-14 w-[340px] rounded-lg border border-[#d8dee8] pl-10 pr-4 text-[13px] outline-none focus:border-[#a9c9ff]" />
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#91a39d]" />
+                  <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search FinSheet" className="fin-input h-12 w-[340px] rounded-2xl pl-10 pr-4 text-[13px]" />
                 </div>
-                <button className="text-[#2f3947]"><Bell size={20} /></button>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0bb24c] text-sm font-semibold text-white">S</div>
+                <button className="rounded-2xl border border-[#dbe4de] bg-white/76 p-3 text-[#355149] hover:border-[#9fd1be] hover:bg-[#eef8f4]"><Bell size={18} /></button>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#16332d] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(22,51,45,0.18)]">S</div>
               </div>
             </div>
           </div>
 
-          <div className="p-4">
-            <section className="rounded-xl border border-[#dbe2ea] bg-white p-4">
-              <div className="mb-5 border-b border-[#e6ebf2] pb-4">
-                <h1 className="text-[16px] font-semibold text-[#2d3642]">{pageTitle}</h1>
+          <div className="p-5">
+            <section className="fin-card rounded-[30px] p-5">
+              <div className="mb-5 flex items-start justify-between gap-4 border-b border-[#d9e4de] pb-5">
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#769186]">Workspace</p>
+                  <h1 className="text-[22px] font-semibold text-[#172126]">{pageTitle}</h1>
+                </div>
+                <div className="fin-pill rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em]">FinSheet ERP</div>
               </div>
               <div className="mb-4 flex flex-wrap items-center gap-4">
                 <ToolbarButton icon={EyeOff} label="Hide" />
@@ -145,8 +155,8 @@ export function FinanceWorkbench() {
                 <ToolbarButton icon={CalendarDays} label={`System Date: ${toolbarDate()}`} />
                 <ToolbarButton icon={CalendarDays} label={`Period 1: ${toolbarPeriod()}`} />
                 <ToolbarButton icon={Upload} label="Export Reports" />
-                <button className="rounded-full border border-[#2f3947] p-1 text-[#2f3947]"><Info size={16} /></button>
-                <div className="ml-auto rounded-full border border-[#dbe2ea] bg-[#fbfcfe] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6d7786]">
+                <button className="fin-toolbar-btn rounded-full p-2 text-[#355149]"><Info size={16} /></button>
+                <div className="fin-status-pill ml-auto rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
                   {syncState === 'saving' && 'Saving'}
                   {syncState === 'saved' && 'Saved'}
                   {syncState === 'error' && 'Sync error'}
