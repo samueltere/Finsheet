@@ -17,6 +17,24 @@ export type WorkspacePage =
   | 'banking'
   | 'companies';
 
+export type TaskKey =
+  | 'sales-orders'
+  | 'sales-invoices'
+  | 'receipts'
+  | 'credit-memos'
+  | 'purchase-orders'
+  | 'purchases-receive-inventories'
+  | 'payments'
+  | 'vendor-credit-memos'
+  | 'general-journal-entries'
+  | 'inventory-adjustments'
+  | 'account-register'
+  | 'account-reconciliation'
+  | 'deposits'
+  | 'store-issue-vouchers'
+  | 'pending-tasks'
+  | 'assets';
+
 export type TopTab = 'File' | 'Lists' | 'Maintain' | 'Tasks' | 'Analysis' | 'Reports' | 'User and Roles';
 
 export type NavItem = {
@@ -56,6 +74,13 @@ export type CompanyRow = {
   createdOn: string;
 };
 
+export type TaskMenuItem = {
+  key: TaskKey;
+  label: string;
+  description: string;
+  postingMode: 'posting' | 'pro-forma' | 'review';
+};
+
 export const navItems: NavItem[] = [
   { key: 'business-status', label: 'Business Status', icon: Grid2x2 },
   { key: 'company-info', label: 'Company Info', icon: Building2 },
@@ -67,6 +92,25 @@ export const navItems: NavItem[] = [
 ];
 
 export const topTabs: TopTab[] = ['File', 'Lists', 'Maintain', 'Tasks', 'Analysis', 'Reports', 'User and Roles'];
+
+export const taskMenuItems: TaskMenuItem[] = [
+  { key: 'sales-orders', label: 'Sales Orders', description: 'Prepare pro-forma customer orders before invoicing.', postingMode: 'pro-forma' },
+  { key: 'sales-invoices', label: 'Sales Invoices', description: 'Post receivable invoices to customers.', postingMode: 'posting' },
+  { key: 'receipts', label: 'Receipts', description: 'Record debit-side cash and bank receipts.', postingMode: 'posting' },
+  { key: 'credit-memos', label: 'Credit Memos', description: 'Issue customer credit notes and reduce receivables.', postingMode: 'posting' },
+  { key: 'purchase-orders', label: 'Purchase Orders', description: 'Prepare vendor purchase orders before receipt.', postingMode: 'pro-forma' },
+  { key: 'purchases-receive-inventories', label: 'Purchases / Receive Inventories', description: 'Receive stock and post inventory or payables.', postingMode: 'posting' },
+  { key: 'payments', label: 'Payments', description: 'Record credit-side payments to vendors and expenses.', postingMode: 'posting' },
+  { key: 'vendor-credit-memos', label: 'Vendor Credit Memos', description: 'Record credits from vendors against payables.', postingMode: 'posting' },
+  { key: 'general-journal-entries', label: 'General Journal Entries', description: 'Post direct debit and credit adjustments.', postingMode: 'posting' },
+  { key: 'inventory-adjustments', label: 'Inventory Adjustments', description: 'Increase or decrease inventory balances.', postingMode: 'posting' },
+  { key: 'account-register', label: 'Account Register', description: 'Review ledger activity by account.', postingMode: 'review' },
+  { key: 'account-reconciliation', label: 'Account Reconciliation', description: 'Compare book balances with statement balances.', postingMode: 'review' },
+  { key: 'deposits', label: 'Deposits', description: 'Move cash receipts into bank accounts.', postingMode: 'posting' },
+  { key: 'store-issue-vouchers', label: 'Store Issue Vouchers', description: 'Issue stock to departments or projects.', postingMode: 'posting' },
+  { key: 'pending-tasks', label: 'Pending Tasks', description: 'Review documents that need follow-up.', postingMode: 'review' },
+  { key: 'assets', label: 'Assets', description: 'Track fixed asset balances and capital items.', postingMode: 'review' },
+];
 
 export const customersSeed: CustomerRow[] = [
   { id: 1, name: 'customer Name Prospect inactive General Histo', phone: '', balance: 0 },
@@ -107,4 +151,8 @@ export function toolbarPeriod() {
 export function topTabForPage(page: WorkspacePage): TopTab {
   if (page === 'business-status' || page === 'company-info' || page === 'companies') return 'Analysis';
   return 'Lists';
+}
+
+export function taskLabel(taskKey: TaskKey) {
+  return taskMenuItems.find((item) => item.key === taskKey)?.label ?? 'Task';
 }

@@ -4,9 +4,10 @@ import { fetchFinanceWorkspace, saveFinanceWorkspace } from '../finance/api';
 import { calculateAccountingSummary } from '../finance/engine';
 import { financeSeed } from '../finance/seed';
 import { FinanceWorkspaceState } from '../finance/types';
-import { navItems, topTabForPage, topTabs, toolbarDate, toolbarPeriod, customersSeed, vendorsSeed, inventorySeed, companiesSeed, WorkspacePage } from './finance-workbench/data';
+import { navItems, taskLabel, taskMenuItems, topTabForPage, topTabs, toolbarDate, toolbarPeriod, customersSeed, vendorsSeed, inventorySeed, companiesSeed, TaskKey, WorkspacePage } from './finance-workbench/data';
 import { BankingView, CompaniesView, CustomersView, InventoryView, VendorsView } from './finance-workbench/entityViews';
 import { BusinessStatusView, CompanyInfoView } from './finance-workbench/companyViews';
+import { TaskWorkspace } from './finance-workbench/taskViews';
 
 function ToolbarButton({ icon: Icon, label }: { icon: React.ComponentType<{ size?: number }>; label: string }) {
   return (
@@ -22,6 +23,8 @@ export function FinanceWorkbench() {
   const [loading, setLoading] = useState(true);
   const [syncState, setSyncState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [activePage, setActivePage] = useState<WorkspacePage>('company-info');
+  const [activeTask, setActiveTask] = useState<TaskKey | null>(null);
+  const [tasksMenuOpen, setTasksMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -70,6 +73,7 @@ export function FinanceWorkbench() {
     banking: 'Banking',
     companies: 'Companies',
   }[activePage];
+  const currentTitle = activeTask ? taskLabel(activeTask) : pageTitle;
 
   if (loading) {
     return (
@@ -104,7 +108,11 @@ export function FinanceWorkbench() {
               {navItems.map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
-                  onClick={() => setActivePage(key)}
+                  onClick={() => {
+                    setActivePage(key);
+                    setActiveTask(null);
+                    setTasksMenuOpen(false);
+                  }}
                   className={`fin-nav-btn flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-[13px] ${activePage === key ? 'fin-nav-btn-active' : ''}`}
                 >
                   <Icon size={15} />
@@ -122,10 +130,16 @@ export function FinanceWorkbench() {
 
         <main className="flex-1">
           <div className="fin-topbar sticky top-0 z-10 px-5 py-5">
-            <div className="fin-surface flex items-center gap-4 rounded-[28px] px-5 py-3">
+            <div className="fin-surface relative flex items-center gap-4 rounded-[28px] px-5 py-3">
               <div className="flex items-center gap-4 overflow-x-auto">
                 {topTabs.map((tab) => (
-                  <button key={tab} className={`fin-top-tab rounded-2xl px-4 py-3 text-[12px] font-medium whitespace-nowrap ${topTabForPage(activePage) === tab ? 'fin-top-tab-active' : ''}`}>{tab}</button>
+                  <button
+                    key={tab}
+                    onClick={() => setTasksMenuOpen(tab === 'Tasks' ? !tasksMenuOpen : false)}
+                    className={`fin-top-tab rounded-2xl px-4 py-3 text-[12px] font-medium whitespace-nowrap ${(activeTask ? 'Tasks' : topTabForPage(activePage)) === tab ? 'fin-top-tab-active' : ''}`}
+                  >
+                    {tab}
+                  </button>
                 ))}
               </div>
               <div className="ml-auto flex items-center gap-4">
@@ -136,6 +150,29 @@ export function FinanceWorkbench() {
                 <button className="rounded-2xl border border-[#dbe4de] bg-white/76 p-3 text-[#355149] hover:border-[#9fd1be] hover:bg-[#eef8f4]"><Bell size={18} /></button>
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#16332d] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(22,51,45,0.18)]">S</div>
               </div>
+              {tasksMenuOpen && (
+                <div className="absolute left-[220px] top-[78px] z-20 w-[360px] rounded-[24px] border border-[#dbe5df] bg-[rgba(255,255,255,0.96)] p-3 shadow-[0_24px_40px_rgba(22,51,45,0.14)] backdrop-blur-xl">
+                  <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#769186]">Task Center</p>
+                  <div className="fin-scroll max-h-[460px] space-y-1 overflow-y-auto pr-1">
+                    {taskMenuItems.map((item) => (
+                      <button
+                        key={item.key}
+                        onClick={() => {
+                          setActiveTask(item.key);
+                          setTasksMenuOpen(false);
+                        }}
+                        className={`w-full rounded-2xl px-3 py-3 text-left hover:bg-[#eef6f1] ${activeTask === item.key ? 'bg-[#eef6f1]' : ''}`}
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-[13px] font-medium text-[#1f2d29]">{item.label}</span>
+                          <span className="text-[10px] uppercase tracking-[0.16em] text-[#7a8a85]">{item.postingMode}</span>
+                        </div>
+                        <p className="mt-1 text-[12px] text-[#60706b]">{item.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -144,7 +181,7 @@ export function FinanceWorkbench() {
               <div className="mb-5 flex items-start justify-between gap-4 border-b border-[#d9e4de] pb-5">
                 <div>
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#769186]">Workspace</p>
-                  <h1 className="text-[22px] font-semibold text-[#172126]">{pageTitle}</h1>
+                  <h1 className="text-[22px] font-semibold text-[#172126]">{currentTitle}</h1>
                 </div>
                 <div className="fin-pill rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em]">FinSheet ERP</div>
               </div>
@@ -164,13 +201,28 @@ export function FinanceWorkbench() {
                 </div>
               </div>
 
-              {activePage === 'company-info' && <CompanyInfoView workspace={workspace} />}
-              {activePage === 'business-status' && <BusinessStatusView workspace={workspace} vendors={vendors} summary={summary} />}
-              {activePage === 'customers' && <CustomersView customers={customers} currency={workspace.company.baseCurrency} />}
-              {activePage === 'vendors' && <VendorsView vendors={vendors} currency={workspace.company.baseCurrency} />}
-              {activePage === 'inventory' && <InventoryView inventories={inventories} />}
-              {activePage === 'companies' && <CompaniesView companies={companies} />}
-              {activePage === 'banking' && <BankingView workspace={workspace} summary={summary} />}
+              {activeTask ? (
+                <TaskWorkspace
+                  activeTask={activeTask}
+                  workspace={workspace}
+                  setWorkspace={setWorkspace}
+                  customers={customers}
+                  vendors={vendors}
+                  inventories={inventories}
+                  companies={companies}
+                  onBack={() => setActiveTask(null)}
+                />
+              ) : (
+                <>
+                  {activePage === 'company-info' && <CompanyInfoView workspace={workspace} />}
+                  {activePage === 'business-status' && <BusinessStatusView workspace={workspace} vendors={vendors} summary={summary} />}
+                  {activePage === 'customers' && <CustomersView customers={customers} currency={workspace.company.baseCurrency} />}
+                  {activePage === 'vendors' && <VendorsView vendors={vendors} currency={workspace.company.baseCurrency} />}
+                  {activePage === 'inventory' && <InventoryView inventories={inventories} />}
+                  {activePage === 'companies' && <CompaniesView companies={companies} />}
+                  {activePage === 'banking' && <BankingView workspace={workspace} summary={summary} />}
+                </>
+              )}
             </section>
           </div>
         </main>
