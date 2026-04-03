@@ -4,10 +4,11 @@ import { fetchFinanceWorkspace, saveFinanceWorkspace } from '../finance/api';
 import { calculateAccountingSummary } from '../finance/engine';
 import { financeSeed } from '../finance/seed';
 import { FinanceWorkspaceState } from '../finance/types';
-import { navItems, taskLabel, taskMenuItems, topTabForPage, topTabs, toolbarDate, toolbarPeriod, customersSeed, vendorsSeed, inventorySeed, companiesSeed, TaskKey, WorkspacePage } from './finance-workbench/data';
+import { companiesSeed, customersSeed, inventorySeed, MaintainKey, maintainLabel, maintainMenuItems, navItems, taskLabel, taskMenuItems, TaskKey, topTabForPage, topTabs, toolbarDate, toolbarPeriod, vendorsSeed, WorkspacePage } from './finance-workbench/data';
 import { BankingView, CompaniesView, CustomersView, InventoryView, VendorsView } from './finance-workbench/entityViews';
 import { BusinessStatusView, CompanyInfoView } from './finance-workbench/companyViews';
 import { TaskWorkspace } from './finance-workbench/taskViews';
+import { MaintainWorkspace } from './finance-workbench/maintainViews';
 
 function ToolbarButton({ icon: Icon, label }: { icon: React.ComponentType<{ size?: number }>; label: string }) {
   return (
@@ -24,8 +25,14 @@ export function FinanceWorkbench() {
   const [syncState, setSyncState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [activePage, setActivePage] = useState<WorkspacePage>('company-info');
   const [activeTask, setActiveTask] = useState<TaskKey | null>(null);
+  const [activeMaintain, setActiveMaintain] = useState<MaintainKey | null>(null);
   const [tasksMenuOpen, setTasksMenuOpen] = useState(false);
+  const [maintainMenuOpen, setMaintainMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [customersData, setCustomersData] = useState(customersSeed);
+  const [vendorsData, setVendorsData] = useState(vendorsSeed);
+  const [inventoriesData, setInventoriesData] = useState(inventorySeed);
+  const [companiesData] = useState(companiesSeed);
 
   useEffect(() => {
     let isMounted = true;
@@ -59,10 +66,10 @@ export function FinanceWorkbench() {
   }, [workspace, loading]);
 
   const summary = useMemo(() => calculateAccountingSummary(workspace), [workspace]);
-  const customers = useMemo(() => customersSeed.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())), [searchTerm]);
-  const vendors = useMemo(() => vendorsSeed.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())), [searchTerm]);
-  const inventories = useMemo(() => inventorySeed.filter((item) => item.itemName.toLowerCase().includes(searchTerm.toLowerCase())), [searchTerm]);
-  const companies = useMemo(() => companiesSeed.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())), [searchTerm]);
+  const customers = useMemo(() => customersData.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())), [customersData, searchTerm]);
+  const vendors = useMemo(() => vendorsData.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())), [vendorsData, searchTerm]);
+  const inventories = useMemo(() => inventoriesData.filter((item) => item.itemName.toLowerCase().includes(searchTerm.toLowerCase())), [inventoriesData, searchTerm]);
+  const companies = useMemo(() => companiesData.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())), [companiesData, searchTerm]);
 
   const pageTitle = {
     'business-status': 'Business Status',
@@ -73,7 +80,7 @@ export function FinanceWorkbench() {
     banking: 'Banking',
     companies: 'Companies',
   }[activePage];
-  const currentTitle = activeTask ? taskLabel(activeTask) : pageTitle;
+  const currentTitle = activeTask ? taskLabel(activeTask) : activeMaintain ? maintainLabel(activeMaintain) : pageTitle;
 
   if (loading) {
     return (
@@ -111,7 +118,9 @@ export function FinanceWorkbench() {
                   onClick={() => {
                     setActivePage(key);
                     setActiveTask(null);
+                    setActiveMaintain(null);
                     setTasksMenuOpen(false);
+                    setMaintainMenuOpen(false);
                   }}
                   className={`fin-nav-btn flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-[13px] ${activePage === key ? 'fin-nav-btn-active' : ''}`}
                 >
@@ -135,8 +144,21 @@ export function FinanceWorkbench() {
                 {topTabs.map((tab) => (
                   <button
                     key={tab}
-                    onClick={() => setTasksMenuOpen(tab === 'Tasks' ? !tasksMenuOpen : false)}
-                    className={`fin-top-tab rounded-2xl px-4 py-3 text-[12px] font-medium whitespace-nowrap ${(activeTask ? 'Tasks' : topTabForPage(activePage)) === tab ? 'fin-top-tab-active' : ''}`}
+                    onClick={() => {
+                      if (tab === 'Tasks') {
+                        setTasksMenuOpen(!tasksMenuOpen);
+                        setMaintainMenuOpen(false);
+                        return;
+                      }
+                      if (tab === 'Maintain') {
+                        setMaintainMenuOpen(!maintainMenuOpen);
+                        setTasksMenuOpen(false);
+                        return;
+                      }
+                      setTasksMenuOpen(false);
+                      setMaintainMenuOpen(false);
+                    }}
+                    className={`fin-top-tab rounded-2xl px-4 py-3 text-[12px] font-medium whitespace-nowrap ${(activeTask ? 'Tasks' : activeMaintain ? 'Maintain' : topTabForPage(activePage)) === tab ? 'fin-top-tab-active' : ''}`}
                   >
                     {tab}
                   </button>
@@ -159,6 +181,7 @@ export function FinanceWorkbench() {
                         key={item.key}
                         onClick={() => {
                           setActiveTask(item.key);
+                          setActiveMaintain(null);
                           setTasksMenuOpen(false);
                         }}
                         className={`w-full rounded-2xl px-3 py-3 text-left hover:bg-[#eef6f1] ${activeTask === item.key ? 'bg-[#eef6f1]' : ''}`}
@@ -166,6 +189,30 @@ export function FinanceWorkbench() {
                         <div className="flex items-center justify-between gap-4">
                           <span className="text-[13px] font-medium text-[#1f2d29]">{item.label}</span>
                           <span className="text-[10px] uppercase tracking-[0.16em] text-[#7a8a85]">{item.postingMode}</span>
+                        </div>
+                        <p className="mt-1 text-[12px] text-[#60706b]">{item.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {maintainMenuOpen && (
+                <div className="absolute left-[134px] top-[78px] z-20 w-[360px] rounded-[24px] border border-[#dbe5df] bg-[rgba(255,255,255,0.96)] p-3 shadow-[0_24px_40px_rgba(22,51,45,0.14)] backdrop-blur-xl">
+                  <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#769186]">Maintain Center</p>
+                  <div className="fin-scroll max-h-[460px] space-y-1 overflow-y-auto pr-1">
+                    {maintainMenuItems.map((item) => (
+                      <button
+                        key={item.key}
+                        onClick={() => {
+                          setActiveMaintain(item.key);
+                          setActiveTask(null);
+                          setMaintainMenuOpen(false);
+                        }}
+                        className={`w-full rounded-2xl px-3 py-3 text-left hover:bg-[#eef6f1] ${activeMaintain === item.key ? 'bg-[#eef6f1]' : ''}`}
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-[13px] font-medium text-[#1f2d29]">{item.label}</span>
+                          <span className="text-[10px] uppercase tracking-[0.16em] text-[#7a8a85]">master</span>
                         </div>
                         <p className="mt-1 text-[12px] text-[#60706b]">{item.description}</p>
                       </button>
@@ -211,6 +258,19 @@ export function FinanceWorkbench() {
                   inventories={inventories}
                   companies={companies}
                   onBack={() => setActiveTask(null)}
+                />
+              ) : activeMaintain ? (
+                <MaintainWorkspace
+                  activeMaintain={activeMaintain}
+                  workspace={workspace}
+                  setWorkspace={setWorkspace}
+                  customers={customersData}
+                  setCustomers={setCustomersData}
+                  vendors={vendorsData}
+                  setVendors={setVendorsData}
+                  inventories={inventoriesData}
+                  setInventories={setInventoriesData}
+                  onBack={() => setActiveMaintain(null)}
                 />
               ) : (
                 <>

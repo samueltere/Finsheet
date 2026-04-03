@@ -35,6 +35,16 @@ export type TaskKey =
   | 'pending-tasks'
   | 'assets';
 
+export type MaintainKey =
+  | 'customers'
+  | 'vendors'
+  | 'employees'
+  | 'chart-of-accounts'
+  | 'budgets'
+  | 'projects-jobs'
+  | 'inventory-items'
+  | 'taxes';
+
 export type TopTab = 'File' | 'Lists' | 'Maintain' | 'Tasks' | 'Analysis' | 'Reports' | 'User and Roles';
 
 export type NavItem = {
@@ -74,11 +84,44 @@ export type CompanyRow = {
   createdOn: string;
 };
 
+export type EmployeeRow = {
+  id: string;
+  fullName: string;
+  department: string;
+  phone: string;
+};
+
+export type ProjectRow = {
+  id: string;
+  name: string;
+  status: 'Open' | 'Closed';
+};
+
+export type TaxRow = {
+  id: string;
+  name: string;
+  rate: number;
+  accountId: string;
+};
+
+export type BudgetRow = {
+  id: string;
+  name: string;
+  amount: number;
+  year: string;
+};
+
 export type TaskMenuItem = {
   key: TaskKey;
   label: string;
   description: string;
   postingMode: 'posting' | 'pro-forma' | 'review';
+};
+
+export type MaintainMenuItem = {
+  key: MaintainKey;
+  label: string;
+  description: string;
 };
 
 export const navItems: NavItem[] = [
@@ -112,6 +155,17 @@ export const taskMenuItems: TaskMenuItem[] = [
   { key: 'assets', label: 'Assets', description: 'Track fixed asset balances and capital items.', postingMode: 'review' },
 ];
 
+export const maintainMenuItems: MaintainMenuItem[] = [
+  { key: 'customers', label: 'Customers', description: 'Create and manage customer master records.' },
+  { key: 'vendors', label: 'Vendors', description: 'Create and manage supplier master records.' },
+  { key: 'employees', label: 'Employees', description: 'Maintain employee profiles for operations and payroll.' },
+  { key: 'chart-of-accounts', label: 'Chart of Accounts', description: 'Create and maintain the ledger structure.' },
+  { key: 'budgets', label: 'Budgets', description: 'Set annual and project budget targets.' },
+  { key: 'projects-jobs', label: 'Projects (Jobs)', description: 'Maintain projects and job cost references.' },
+  { key: 'inventory-items', label: 'Inventory Items', description: 'Set up stock items, classes, and pricing.' },
+  { key: 'taxes', label: 'Taxes', description: 'Maintain tax codes, rates, and related accounts.' },
+];
+
 export const customersSeed: CustomerRow[] = [
   { id: 1, name: 'customer Name Prospect inactive General Histo', phone: '', balance: 0 },
   { id: 2, name: 'customer 2', phone: '', balance: 0 },
@@ -140,6 +194,26 @@ export const companiesSeed: CompanyRow[] = [
   { id: 'cmp-10', name: 'Company 2', startDate: 'Jul 01, 2023', users: 1, status: 'Active', createdOn: '19/02/2026 07:44' },
 ];
 
+export const employeesSeed: EmployeeRow[] = [
+  { id: 'emp-001', fullName: 'Samuel Tere', department: 'Finance', phone: '0700000001' },
+  { id: 'emp-002', fullName: 'Amina Yusuf', department: 'Operations', phone: '0700000002' },
+];
+
+export const projectsSeed: ProjectRow[] = [
+  { id: 'prj-001', name: 'Retail Expansion', status: 'Open' },
+  { id: 'prj-002', name: 'Warehouse Upgrade', status: 'Open' },
+];
+
+export const taxesSeed: TaxRow[] = [
+  { id: 'tax-001', name: 'VAT 15%', rate: 15, accountId: 'acct-vat' },
+  { id: 'tax-002', name: 'VAT 0%', rate: 0, accountId: 'acct-vat' },
+];
+
+export const budgetsSeed: BudgetRow[] = [
+  { id: 'bud-001', name: 'Operations FY2026', amount: 24000, year: '2026' },
+  { id: 'bud-002', name: 'Sales FY2026', amount: 48000, year: '2026' },
+];
+
 export function toolbarDate() {
   return 'Apr 03, 2026';
 }
@@ -155,4 +229,8 @@ export function topTabForPage(page: WorkspacePage): TopTab {
 
 export function taskLabel(taskKey: TaskKey) {
   return taskMenuItems.find((item) => item.key === taskKey)?.label ?? 'Task';
+}
+
+export function maintainLabel(maintainKey: MaintainKey) {
+  return maintainMenuItems.find((item) => item.key === maintainKey)?.label ?? 'Maintain';
 }
