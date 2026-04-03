@@ -1,68 +1,41 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, BookOpen, Building2, FileSpreadsheet, Landmark, PlusCircle, Wallet } from 'lucide-react';
+import { Bell, CalendarDays, EyeOff, Grid2x2, HelpCircle, Info, LogOut, Printer, RefreshCw, Search, Upload } from 'lucide-react';
 import { fetchFinanceWorkspace, saveFinanceWorkspace } from '../finance/api';
-import { buildLedgerForAccount, calculateAccountingSummary, formatMoney } from '../finance/engine';
+import { calculateAccountingSummary } from '../finance/engine';
 import { financeSeed } from '../finance/seed';
-import { FinanceAccount, FinanceWorkspaceState, JournalEntry, JournalLine } from '../finance/types';
+import { FinanceWorkspaceState } from '../finance/types';
+import { navItems, topTabForPage, topTabs, toolbarDate, toolbarPeriod, customersSeed, vendorsSeed, inventorySeed, companiesSeed, WorkspacePage } from './finance-workbench/data';
+import { BankingView, CompaniesView, CustomersView, InventoryView, VendorsView } from './finance-workbench/entityViews';
+import { BusinessStatusView, CompanyInfoView } from './finance-workbench/companyViews';
 
-type ModuleKey = 'overview' | 'accounts' | 'journals' | 'trial-balance' | 'cashflow' | 'roadmap';
-
-const modules: Array<{ key: ModuleKey; label: string; icon: React.ComponentType<{ size?: number }> }> = [
-  { key: 'overview', label: 'Overview', icon: Building2 },
-  { key: 'accounts', label: 'Accounts', icon: Landmark },
-  { key: 'journals', label: 'Journals', icon: BookOpen },
-  { key: 'trial-balance', label: 'Trial Balance', icon: FileSpreadsheet },
-  { key: 'cashflow', label: 'Cashflow', icon: Wallet },
-  { key: 'roadmap', label: 'Roadmap', icon: BarChart3 },
-];
-
-function makeId(prefix: string) {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function emptyLine(accountId = ''): JournalLine {
-  return { accountId, debit: 0, credit: 0 };
+function ToolbarButton({ icon: Icon, label }: { icon: React.ComponentType<{ size?: number }>; label: string }) {
+  return (
+    <button className="inline-flex h-9 items-center gap-2 rounded-md border border-[#d8dee8] bg-white px-3 text-[12px] font-medium text-[#556173] hover:bg-[#f8fbff]">
+      <Icon size={14} />
+      <span>{label}</span>
+    </button>
+  );
 }
 
 export function FinanceWorkbench() {
   const [workspace, setWorkspace] = useState<FinanceWorkspaceState>(financeSeed);
-  const [activeModule, setActiveModule] = useState<ModuleKey>('overview');
-  const [selectedLedgerId, setSelectedLedgerId] = useState(financeSeed.accounts[1].id);
   const [loading, setLoading] = useState(true);
   const [syncState, setSyncState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [accountForm, setAccountForm] = useState({
-    code: '',
-    name: '',
-    category: 'asset',
-    type: 'other_asset',
-    cashFlowGroup: 'operating',
-  });
-  const [entryForm, setEntryForm] = useState({
-    date: '2026-04-03',
-    reference: '',
-    memo: '',
-    lines: [emptyLine(financeSeed.accounts[1].id), emptyLine(financeSeed.accounts[10].id)],
-  });
+  const [activePage, setActivePage] = useState<WorkspacePage>('company-info');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     let isMounted = true;
-
     void (async () => {
       try {
         const remoteWorkspace = await fetchFinanceWorkspace();
-        if (!isMounted) return;
-        setWorkspace(remoteWorkspace);
-        setSelectedLedgerId(remoteWorkspace.accounts[1]?.id ?? remoteWorkspace.accounts[0]?.id ?? financeSeed.accounts[1].id);
+        if (isMounted) setWorkspace(remoteWorkspace);
       } catch (error) {
         console.error('Failed to load finance workspace', error);
-        if (!isMounted) return;
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     })();
-
     return () => {
       isMounted = false;
     };
@@ -70,7 +43,6 @@ export function FinanceWorkbench() {
 
   useEffect(() => {
     if (loading) return;
-
     const timer = window.setTimeout(() => {
       setSyncState('saving');
       void saveFinanceWorkspace(workspace)
@@ -80,360 +52,117 @@ export function FinanceWorkbench() {
           setSyncState('error');
         });
     }, 500);
-
     return () => window.clearTimeout(timer);
   }, [workspace, loading]);
 
   const summary = useMemo(() => calculateAccountingSummary(workspace), [workspace]);
-  const ledgerRows = useMemo(() => buildLedgerForAccount(workspace, selectedLedgerId), [workspace, selectedLedgerId]);
-  const currency = workspace.company.baseCurrency;
-  const totalDebits = entryForm.lines.reduce((sum, line) => sum + Number(line.debit || 0), 0);
-  const totalCredits = entryForm.lines.reduce((sum, line) => sum + Number(line.credit || 0), 0);
-  const entryBalanced = totalDebits > 0 && totalDebits === totalCredits;
+  const customers = useMemo(() => customersSeed.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())), [searchTerm]);
+  const vendors = useMemo(() => vendorsSeed.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())), [searchTerm]);
+  const inventories = useMemo(() => inventorySeed.filter((item) => item.itemName.toLowerCase().includes(searchTerm.toLowerCase())), [searchTerm]);
+  const companies = useMemo(() => companiesSeed.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())), [searchTerm]);
 
-  function updateLine(index: number, patch: Partial<JournalLine>) {
-    setEntryForm((current) => ({
-      ...current,
-      lines: current.lines.map((line, lineIndex) => (lineIndex === index ? { ...line, ...patch } : line)),
-    }));
-  }
-
-  function addAccount(event: React.FormEvent) {
-    event.preventDefault();
-    if (!accountForm.code.trim() || !accountForm.name.trim()) return;
-
-    const account: FinanceAccount = {
-      id: makeId('acct'),
-      code: accountForm.code.trim(),
-      name: accountForm.name.trim(),
-      category: accountForm.category as FinanceAccount['category'],
-      type: accountForm.type as FinanceAccount['type'],
-      cashFlowGroup: accountForm.cashFlowGroup as FinanceAccount['cashFlowGroup'],
-      isSystem: false,
-    };
-
-    setWorkspace((current) => ({
-      ...current,
-      accounts: [...current.accounts, account].sort((a, b) => a.code.localeCompare(b.code)),
-    }));
-    setAccountForm({ code: '', name: '', category: 'asset', type: 'other_asset', cashFlowGroup: 'operating' });
-  }
-
-  function addJournalEntry(event: React.FormEvent) {
-    event.preventDefault();
-    if (!entryBalanced) return;
-
-    const lines = entryForm.lines
-      .filter((line) => line.accountId && (Number(line.debit) > 0 || Number(line.credit) > 0))
-      .map((line) => ({
-        accountId: line.accountId,
-        debit: Number(line.debit) || 0,
-        credit: Number(line.credit) || 0,
-      }));
-
-    if (lines.length < 2) return;
-
-    const entry: JournalEntry = {
-      id: makeId('je'),
-      date: entryForm.date,
-      reference: entryForm.reference.trim() || makeId('REF').toUpperCase(),
-      memo: entryForm.memo.trim(),
-      source: 'manual',
-      lines,
-    };
-
-    setWorkspace((current) => ({
-      ...current,
-      entries: [...current.entries, entry].sort((a, b) => a.date.localeCompare(b.date)),
-    }));
-    setEntryForm({
-      date: entryForm.date,
-      reference: '',
-      memo: '',
-      lines: [emptyLine(financeSeed.accounts[1].id), emptyLine(financeSeed.accounts[10].id)],
-    });
-  }
+  const pageTitle = {
+    'business-status': 'Business Status',
+    'company-info': 'Company',
+    customers: 'Customers & Sales',
+    vendors: 'Vendors & Purchases',
+    inventory: 'Inventory Dashboard',
+    banking: 'Banking',
+    companies: 'Companies',
+  }[activePage];
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7f0e6]">
-        <div className="rounded-[32px] border border-[#ddcfbd] bg-white px-8 py-7 text-center shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#8b6644]">Finsheet</p>
-          <h1 className="mt-3 text-2xl font-semibold text-[#241b13]">Loading finance workspace</h1>
-          <p className="mt-3 text-sm text-[#725842]">Connecting to the hosted accounting database and preparing shared data.</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#f6f8fb]">
+        <div className="rounded-xl border border-[#d8dee8] bg-white px-8 py-7 text-center shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#6d7786]">FinSheet</p>
+          <h1 className="mt-3 text-2xl font-semibold text-[#2d3642]">Loading workspace</h1>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f0e6] text-[#241b13]">
-      <div className="mx-auto flex min-h-screen max-w-[1600px]">
-        <aside className="w-[280px] shrink-0 border-r border-[#d8cab8] bg-[#18130f] p-4 text-[#f6eadb]">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#f1c98c]">FinSheet</p>
-            <h1 className="mt-3 text-2xl font-semibold">{workspace.company.name}</h1>
-            <p className="mt-2 text-sm text-[#dccab2]">Sage 50 inspired accounting workspace</p>
+    <div className="min-h-screen bg-[#f6f8fb] text-[#2d3642]">
+      <div className="flex min-h-screen">
+        <aside className="flex w-[150px] shrink-0 flex-col border-r border-[#dbe2ea] bg-[#f4f6fa]">
+          <div className="flex h-[54px] items-center border-b border-[#e6ebf2] px-3">
+            <button className="rounded-md p-1 text-[#4b5564] hover:bg-white"><Grid2x2 size={22} /></button>
           </div>
-          <nav className="mt-6 space-y-2">
-            {modules.map(({ key, label, icon: Icon }) => (
-              <button
-                key={key}
-                onClick={() => setActiveModule(key)}
-                className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold ${
-                  activeModule === key ? 'bg-[#f1dfca] text-[#241b13]' : 'hover:bg-white/6'
-                }`}
-              >
-                <Icon size={18} />
-                <span>{label}</span>
-              </button>
-            ))}
-          </nav>
+          <div className="px-3 py-4">
+            <div className="mb-4 flex items-center gap-2 px-1">
+              <div className="flex h-5 w-5 items-center justify-center rounded-[4px] bg-[#f4553c] text-white"><Grid2x2 size={12} /></div>
+              <span className="font-serif text-[18px] font-semibold text-[#5a2130]">FinSheet</span>
+            </div>
+            <nav className="space-y-1">
+              {navItems.map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setActivePage(key)}
+                  className={`flex w-full items-center gap-2 rounded-md border px-3 py-3 text-left text-[12px] ${activePage === key ? 'border-[#0d6efd] bg-white text-[#111827]' : 'border-transparent text-[#95a0b1] hover:border-[#d9e1ea] hover:bg-white'}`}
+                >
+                  <Icon size={15} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+          <div className="mt-auto space-y-4 px-5 pb-8 text-[12px] text-[#95a0b1]">
+            <button className="flex items-center gap-2 hover:text-[#5b6677]"><HelpCircle size={16} />Help Center</button>
+            <button className="flex items-center gap-2 hover:text-[#5b6677]"><LogOut size={16} />Log out</button>
+            <p className="pl-6 text-[11px]">v1.0.0</p>
+          </div>
         </aside>
 
-        <main className="flex-1 p-8">
-          <header className="rounded-[32px] border border-[#ddcfbd] bg-[linear-gradient(135deg,#fffaf5,#f3e2cf)] p-8 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#8b6644]">ERP Workspace</p>
-            <h2 className="mt-3 text-3xl font-semibold">{modules.find((item) => item.key === activeModule)?.label}</h2>
-            <p className="mt-3 max-w-4xl text-sm text-[#725842]">
-              Phase 1 turns the project into a working accounting core with chart of accounts, journal posting, trial balance, general ledger drilldown, and cashflow summary.
-            </p>
-            <div className="mt-4 inline-flex rounded-full border border-[#ddcfbd] bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#725842]">
-              {syncState === 'saving' && 'Saving'}
-              {syncState === 'saved' && 'Saved to server'}
-              {syncState === 'error' && 'Sync error'}
-              {syncState === 'idle' && 'Connected'}
-            </div>
-          </header>
-
-          <section className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {[
-              { label: 'Current Cash', value: formatMoney(summary.cashFlow.closingCash, currency) },
-              { label: 'Net Profit', value: formatMoney(summary.netProfit, currency) },
-              { label: 'Assets', value: formatMoney(summary.totals.assets, currency) },
-              { label: 'Posted Entries', value: String(summary.entriesCount) },
-            ].map((item) => (
-              <div key={item.label} className="rounded-[28px] border border-[#ddcfbd] bg-white p-6 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#8b6644]">{item.label}</p>
-                <p className="mt-4 text-3xl font-semibold">{item.value}</p>
-              </div>
-            ))}
-          </section>
-
-          {activeModule === 'overview' && (
-            <div className="mt-8 grid gap-8 xl:grid-cols-[1.2fr,0.9fr]">
-              <div className="rounded-[32px] border border-[#ddcfbd] bg-white p-7 shadow-sm">
-                <h3 className="text-2xl font-semibold">Trial Balance Snapshot</h3>
-                <div className="mt-6 overflow-hidden rounded-3xl border border-[#eadfce]">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="bg-[#f7f0e6] text-[#8b6644]">
-                      <tr><th className="px-5 py-4">Code</th><th className="px-5 py-4">Account</th><th className="px-5 py-4">Debit</th><th className="px-5 py-4">Credit</th></tr>
-                    </thead>
-                    <tbody>
-                      {summary.trialBalance.slice(0, 8).map((row) => (
-                        <tr key={row.accountId} className="border-t border-[#f0e7db]">
-                          <td className="px-5 py-4 font-mono text-xs">{row.code}</td>
-                          <td className="px-5 py-4">{row.name}</td>
-                          <td className="px-5 py-4">{row.debit ? formatMoney(row.debit, currency) : '-'}</td>
-                          <td className="px-5 py-4">{row.credit ? formatMoney(row.credit, currency) : '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="rounded-[32px] border border-[#ddcfbd] bg-[#241b13] p-7 text-[#f7f0e6] shadow-sm">
-                  <h3 className="text-2xl font-semibold">Cashflow Formula</h3>
-                  <div className="mt-5 space-y-3 text-sm">
-                    <div className="flex justify-between rounded-2xl bg-white/6 px-4 py-3"><span>Operating</span><strong>{formatMoney(summary.cashFlow.operating, currency)}</strong></div>
-                    <div className="flex justify-between rounded-2xl bg-white/6 px-4 py-3"><span>Investing</span><strong>{formatMoney(summary.cashFlow.investing, currency)}</strong></div>
-                    <div className="flex justify-between rounded-2xl bg-white/6 px-4 py-3"><span>Financing</span><strong>{formatMoney(summary.cashFlow.financing, currency)}</strong></div>
-                    <div className="flex justify-between rounded-2xl bg-[#f1dfca] px-4 py-3 text-[#241b13]"><span>Closing Cash</span><strong>{formatMoney(summary.cashFlow.closingCash, currency)}</strong></div>
-                  </div>
-                </div>
-
-                <div className="rounded-[32px] border border-[#ddcfbd] bg-white p-7 shadow-sm">
-                  <h3 className="text-2xl font-semibold">Ledger Drilldown</h3>
-                  <select value={selectedLedgerId} onChange={(event) => setSelectedLedgerId(event.target.value)} className="mt-4 w-full rounded-2xl border border-[#ddcfbd] bg-[#fcfaf7] px-4 py-3 outline-none">
-                    {workspace.accounts.map((account) => <option key={account.id} value={account.id}>{account.code} - {account.name}</option>)}
-                  </select>
-                  <div className="mt-4 space-y-3">
-                    {ledgerRows.slice(-4).map((row) => (
-                      <div key={`${row.entryId}-${row.date}-${row.debit}-${row.credit}`} className="rounded-2xl border border-[#f0e7db] bg-[#fcfaf7] p-4 text-sm">
-                        <div className="flex justify-between gap-4">
-                          <div>
-                            <p className="font-semibold">{row.reference}</p>
-                            <p className="text-xs text-[#7b5f46]">{row.memo}</p>
-                          </div>
-                          <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#8b6644]">{row.date}</span>
-                        </div>
-                        <div className="mt-3 flex justify-between">
-                          <span>Running Balance</span>
-                          <strong>{formatMoney(row.runningBalance, currency)}</strong>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeModule === 'accounts' && (
-            <div className="mt-8 grid gap-8 xl:grid-cols-[0.95fr,1.3fr]">
-              <form onSubmit={addAccount} className="rounded-[32px] border border-[#ddcfbd] bg-white p-7 shadow-sm">
-                <h3 className="text-2xl font-semibold">Add Account</h3>
-                <div className="mt-5 space-y-4">
-                  <input value={accountForm.code} onChange={(event) => setAccountForm((current) => ({ ...current, code: event.target.value }))} placeholder="Account code" className="w-full rounded-2xl border border-[#ddcfbd] bg-[#fcfaf7] px-4 py-3 outline-none" />
-                  <input value={accountForm.name} onChange={(event) => setAccountForm((current) => ({ ...current, name: event.target.value }))} placeholder="Account name" className="w-full rounded-2xl border border-[#ddcfbd] bg-[#fcfaf7] px-4 py-3 outline-none" />
-                  <select value={accountForm.category} onChange={(event) => setAccountForm((current) => ({ ...current, category: event.target.value }))} className="w-full rounded-2xl border border-[#ddcfbd] bg-[#fcfaf7] px-4 py-3 outline-none">
-                    <option value="asset">Asset</option><option value="liability">Liability</option><option value="equity">Equity</option><option value="revenue">Revenue</option><option value="expense">Expense</option>
-                  </select>
-                  <select value={accountForm.type} onChange={(event) => setAccountForm((current) => ({ ...current, type: event.target.value }))} className="w-full rounded-2xl border border-[#ddcfbd] bg-[#fcfaf7] px-4 py-3 outline-none">
-                    <option value="other_asset">Other Asset</option><option value="accounts_receivable">Accounts Receivable</option><option value="inventory">Inventory</option><option value="fixed_asset">Fixed Asset</option><option value="accounts_payable">Accounts Payable</option><option value="tax_payable">Tax Payable</option><option value="loan">Loan</option><option value="capital">Capital</option><option value="retained_earnings">Retained Earnings</option><option value="sales">Sales</option><option value="other_income">Other Income</option><option value="cost_of_sales">Cost of Sales</option><option value="operating_expense">Operating Expense</option>
-                  </select>
-                  <select value={accountForm.cashFlowGroup} onChange={(event) => setAccountForm((current) => ({ ...current, cashFlowGroup: event.target.value }))} className="w-full rounded-2xl border border-[#ddcfbd] bg-[#fcfaf7] px-4 py-3 outline-none">
-                    <option value="operating">Operating</option><option value="investing">Investing</option><option value="financing">Financing</option><option value="noncash">Non-cash</option>
-                  </select>
-                </div>
-                <button className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#241b13] px-5 py-3 text-sm font-semibold text-[#f7f0e6]"><PlusCircle size={18} />Add Account</button>
-              </form>
-
-              <div className="rounded-[32px] border border-[#ddcfbd] bg-white p-7 shadow-sm">
-                <h3 className="text-2xl font-semibold">Chart of Accounts</h3>
-                <div className="mt-6 overflow-hidden rounded-3xl border border-[#eadfce]">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="bg-[#f7f0e6] text-[#8b6644]">
-                      <tr><th className="px-5 py-4">Code</th><th className="px-5 py-4">Name</th><th className="px-5 py-4">Category</th><th className="px-5 py-4">Cashflow</th></tr>
-                    </thead>
-                    <tbody>
-                      {workspace.accounts.map((account) => (
-                        <tr key={account.id} className="border-t border-[#f0e7db]">
-                          <td className="px-5 py-4 font-mono text-xs">{account.code}</td>
-                          <td className="px-5 py-4">{account.name}</td>
-                          <td className="px-5 py-4 capitalize">{account.category}</td>
-                          <td className="px-5 py-4 capitalize">{account.cashFlowGroup}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeModule === 'journals' && (
-            <div className="mt-8 grid gap-8 xl:grid-cols-[1fr,1.2fr]">
-              <form onSubmit={addJournalEntry} className="rounded-[32px] border border-[#ddcfbd] bg-white p-7 shadow-sm">
-                <h3 className="text-2xl font-semibold">Post Journal Entry</h3>
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
-                  <input type="date" value={entryForm.date} onChange={(event) => setEntryForm((current) => ({ ...current, date: event.target.value }))} className="rounded-2xl border border-[#ddcfbd] bg-[#fcfaf7] px-4 py-3 outline-none" />
-                  <input value={entryForm.reference} onChange={(event) => setEntryForm((current) => ({ ...current, reference: event.target.value }))} placeholder="Reference" className="rounded-2xl border border-[#ddcfbd] bg-[#fcfaf7] px-4 py-3 outline-none" />
-                </div>
-                <textarea value={entryForm.memo} onChange={(event) => setEntryForm((current) => ({ ...current, memo: event.target.value }))} placeholder="Entry memo" rows={3} className="mt-4 w-full rounded-2xl border border-[#ddcfbd] bg-[#fcfaf7] px-4 py-3 outline-none" />
-                <div className="mt-5 space-y-3">
-                  {entryForm.lines.map((line, index) => (
-                    <div key={index} className="grid gap-3 rounded-3xl border border-[#eadfce] bg-[#fcfaf7] p-4 md:grid-cols-[1.4fr,0.7fr,0.7fr]">
-                      <select value={line.accountId} onChange={(event) => updateLine(index, { accountId: event.target.value })} className="rounded-2xl border border-[#ddcfbd] bg-white px-4 py-3 outline-none">
-                        <option value="">Select account</option>
-                        {workspace.accounts.map((account) => <option key={account.id} value={account.id}>{account.code} - {account.name}</option>)}
-                      </select>
-                      <input type="number" min="0" step="0.01" value={line.debit || ''} onChange={(event) => updateLine(index, { debit: Number(event.target.value || 0), credit: 0 })} placeholder="Debit" className="rounded-2xl border border-[#ddcfbd] bg-white px-4 py-3 outline-none" />
-                      <input type="number" min="0" step="0.01" value={line.credit || ''} onChange={(event) => updateLine(index, { credit: Number(event.target.value || 0), debit: 0 })} placeholder="Credit" className="rounded-2xl border border-[#ddcfbd] bg-white px-4 py-3 outline-none" />
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button type="button" onClick={() => setEntryForm((current) => ({ ...current, lines: [...current.lines, emptyLine()] }))} className="rounded-2xl border border-[#ddcfbd] bg-[#fcfaf7] px-4 py-3 text-sm font-semibold">Add Line</button>
-                  <div className={`rounded-2xl px-4 py-3 text-sm font-semibold ${entryBalanced ? 'bg-[#ebf7ef] text-[#26704a]' : 'bg-[#fff0ee] text-[#9b463d]'}`}>Debits {formatMoney(totalDebits, currency)} | Credits {formatMoney(totalCredits, currency)}</div>
-                </div>
-                <button type="submit" disabled={!entryBalanced} className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[#241b13] px-5 py-3 text-sm font-semibold text-[#f7f0e6] disabled:opacity-50"><PlusCircle size={18} />Post Entry</button>
-              </form>
-
-              <div className="rounded-[32px] border border-[#ddcfbd] bg-white p-7 shadow-sm">
-                <h3 className="text-2xl font-semibold">Posted Journal</h3>
-                <div className="mt-5 space-y-4">
-                  {[...workspace.entries].sort((a, b) => b.date.localeCompare(a.date)).map((entry) => (
-                    <div key={entry.id} className="rounded-3xl border border-[#eadfce] bg-[#fcfaf7] p-5">
-                      <div className="flex justify-between gap-4">
-                        <div>
-                          <p className="font-semibold">{entry.reference}</p>
-                          <p className="text-sm text-[#7b5f46]">{entry.memo || 'No memo'}</p>
-                        </div>
-                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8b6644]">{entry.date}</p>
-                      </div>
-                      <div className="mt-4 space-y-2">
-                        {entry.lines.map((line, index) => {
-                          const account = workspace.accounts.find((item) => item.id === line.accountId);
-                          return <div key={`${entry.id}-${index}`} className="flex justify-between rounded-2xl bg-white px-4 py-3 text-sm"><span>{account ? `${account.code} - ${account.name}` : line.accountId}</span><strong>{line.debit ? `DR ${formatMoney(line.debit, currency)}` : `CR ${formatMoney(line.credit, currency)}`}</strong></div>;
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeModule === 'trial-balance' && (
-            <div className="mt-8 rounded-[32px] border border-[#ddcfbd] bg-white p-7 shadow-sm">
-              <h3 className="text-2xl font-semibold">Trial Balance</h3>
-              <div className="mt-6 overflow-hidden rounded-3xl border border-[#eadfce]">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-[#f7f0e6] text-[#8b6644]">
-                    <tr><th className="px-5 py-4">Code</th><th className="px-5 py-4">Account</th><th className="px-5 py-4">Category</th><th className="px-5 py-4">Debit</th><th className="px-5 py-4">Credit</th></tr>
-                  </thead>
-                  <tbody>
-                    {summary.trialBalance.map((row) => (
-                      <tr key={row.accountId} className="border-t border-[#f0e7db]">
-                        <td className="px-5 py-4 font-mono text-xs">{row.code}</td>
-                        <td className="px-5 py-4">{row.name}</td>
-                        <td className="px-5 py-4 capitalize">{row.category}</td>
-                        <td className="px-5 py-4">{row.debit ? formatMoney(row.debit, currency) : '-'}</td>
-                        <td className="px-5 py-4">{row.credit ? formatMoney(row.credit, currency) : '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeModule === 'cashflow' && (
-            <div className="mt-8 grid gap-8 xl:grid-cols-[0.9fr,1.1fr]">
-              <div className="rounded-[32px] border border-[#ddcfbd] bg-[#241b13] p-7 text-[#f7f0e6] shadow-sm">
-                <h3 className="text-2xl font-semibold">Cashflow</h3>
-                <div className="mt-5 space-y-3 text-sm">
-                  <div className="flex justify-between rounded-2xl bg-white/6 px-4 py-3"><span>Opening cash</span><strong>{formatMoney(summary.cashFlow.openingCash, currency)}</strong></div>
-                  <div className="flex justify-between rounded-2xl bg-white/6 px-4 py-3"><span>Operating</span><strong>{formatMoney(summary.cashFlow.operating, currency)}</strong></div>
-                  <div className="flex justify-between rounded-2xl bg-white/6 px-4 py-3"><span>Investing</span><strong>{formatMoney(summary.cashFlow.investing, currency)}</strong></div>
-                  <div className="flex justify-between rounded-2xl bg-white/6 px-4 py-3"><span>Financing</span><strong>{formatMoney(summary.cashFlow.financing, currency)}</strong></div>
-                  <div className="flex justify-between rounded-2xl bg-[#f1dfca] px-4 py-3 text-[#241b13]"><span>Closing cash</span><strong>{formatMoney(summary.cashFlow.closingCash, currency)}</strong></div>
-                </div>
-              </div>
-              <div className="rounded-[32px] border border-[#ddcfbd] bg-white p-7 shadow-sm">
-                <h3 className="text-2xl font-semibold">What Comes Next</h3>
-                <div className="mt-5 space-y-4 text-sm text-[#4d3b2c]">
-                  <div className="rounded-3xl border border-[#eadfce] bg-[#fcfaf7] p-5">Add beginning balances, profit and loss, balance sheet, and period close controls.</div>
-                  <div className="rounded-3xl border border-[#eadfce] bg-[#fcfaf7] p-5">Then build receivables, payables, inventory, assets, payroll, and tax as subledgers that post into the GL.</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeModule === 'roadmap' && (
-            <div className="mt-8 rounded-[32px] border border-[#ddcfbd] bg-white p-7 shadow-sm">
-              <h3 className="text-2xl font-semibold">SDLC Roadmap</h3>
-              <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {['Phase 1: Core accounting', 'Phase 2: Statements and periods', 'Phase 3: Receivables', 'Phase 4: Payables', 'Phase 5: Banking', 'Phase 6: Inventory and projects', 'Phase 7: Fixed assets', 'Phase 8: Payroll', 'Phase 9: Tax and declarations'].map((item) => (
-              <div key={item} className="rounded-3xl border border-[#eadfce] bg-[#fcfaf7] p-5 text-sm font-semibold">{item}</div>
+        <main className="flex-1">
+          <div className="sticky top-0 z-10 border-b border-[#e4e9f1] bg-[#fffdfb] px-4 py-4">
+            <div className="flex items-center gap-4 rounded-xl border border-[#dbe2ea] bg-white px-4 py-2">
+              <div className="flex items-center gap-4 overflow-x-auto">
+                {topTabs.map((tab) => (
+                  <button key={tab} className={`border-b-2 px-3 py-2 text-[12px] font-medium whitespace-nowrap ${topTabForPage(activePage) === tab ? 'border-[#0bb24c] text-[#0bb24c]' : 'border-transparent text-[#252f3d]'}`}>{tab}</button>
                 ))}
               </div>
-              <p className="mt-6 text-sm text-[#725842]">The full written plan is in `docs/finsheet-erp-plan.md`.</p>
+              <div className="ml-auto flex items-center gap-4">
+                <div className="relative">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa5b5]" />
+                  <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search" className="h-14 w-[340px] rounded-lg border border-[#d8dee8] pl-10 pr-4 text-[13px] outline-none focus:border-[#a9c9ff]" />
+                </div>
+                <button className="text-[#2f3947]"><Bell size={20} /></button>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0bb24c] text-sm font-semibold text-white">S</div>
+              </div>
             </div>
-          )}
+          </div>
+
+          <div className="p-4">
+            <section className="rounded-xl border border-[#dbe2ea] bg-white p-4">
+              <div className="mb-5 border-b border-[#e6ebf2] pb-4">
+                <h1 className="text-[16px] font-semibold text-[#2d3642]">{pageTitle}</h1>
+              </div>
+              <div className="mb-4 flex flex-wrap items-center gap-4">
+                <ToolbarButton icon={EyeOff} label="Hide" />
+                <ToolbarButton icon={RefreshCw} label="Refresh" />
+                <ToolbarButton icon={Printer} label="Print" />
+                <ToolbarButton icon={CalendarDays} label={`System Date: ${toolbarDate()}`} />
+                <ToolbarButton icon={CalendarDays} label={`Period 1: ${toolbarPeriod()}`} />
+                <ToolbarButton icon={Upload} label="Export Reports" />
+                <button className="rounded-full border border-[#2f3947] p-1 text-[#2f3947]"><Info size={16} /></button>
+                <div className="ml-auto rounded-full border border-[#dbe2ea] bg-[#fbfcfe] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6d7786]">
+                  {syncState === 'saving' && 'Saving'}
+                  {syncState === 'saved' && 'Saved'}
+                  {syncState === 'error' && 'Sync error'}
+                  {syncState === 'idle' && 'Connected'}
+                </div>
+              </div>
+
+              {activePage === 'company-info' && <CompanyInfoView workspace={workspace} />}
+              {activePage === 'business-status' && <BusinessStatusView workspace={workspace} vendors={vendors} summary={summary} />}
+              {activePage === 'customers' && <CustomersView customers={customers} currency={workspace.company.baseCurrency} />}
+              {activePage === 'vendors' && <VendorsView vendors={vendors} currency={workspace.company.baseCurrency} />}
+              {activePage === 'inventory' && <InventoryView inventories={inventories} />}
+              {activePage === 'companies' && <CompaniesView companies={companies} />}
+              {activePage === 'banking' && <BankingView workspace={workspace} summary={summary} />}
+            </section>
+          </div>
         </main>
       </div>
     </div>
